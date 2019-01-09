@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class SnakeController : MonoBehaviour {
 
@@ -14,11 +15,19 @@ public class SnakeController : MonoBehaviour {
 
     private Vector3 direccion = Vector3.right;
 
+    private enum TipoCasilla
+    {
+        Vacio, Obstaculo
+    }
+
+    private TipoCasilla[,] mapa;
+
     private void Awake()
     {
-        CrearMuros();
+        mapa = new TipoCasilla[Ancho, Alto];
         float posicionInicialX = Ancho / 2;
         float posicionInicialY = Alto / 2;
+        CrearMuros();
         InicializaSerpiente(posicionInicialX, posicionInicialY);
         //siempre tendremos referencia a la cabeza:
         cabeza = NuevoBloque(posicionInicialX, posicionInicialY);
@@ -37,11 +46,23 @@ public class SnakeController : MonoBehaviour {
         }
     }
 
+    private TipoCasilla ObtenerMapa(Vector3 posicion)
+    {
+        return mapa[Mathf.RoundToInt(posicion.x), Mathf.RoundToInt(posicion.y)];
+    }
+
+    private void EstablecerMapa(Vector3 posicion, TipoCasilla valor)
+    {
+        mapa[Mathf.RoundToInt(posicion.x), Mathf.RoundToInt(posicion.y)] = valor;
+    }
+
     private GameObject NuevoBloque(float x, float y)
     {
         //Intancia un bloque principal en medio de la pantalla y lo encola en nuestra cola
         GameObject nuevo = Instantiate(Bloque, new Vector3(x, y), Quaternion.identity, this.transform);
         cuerpo.Enqueue(nuevo);
+        //Lo ponemos como ocupado ese bloque que hayamos construido
+        EstablecerMapa(nuevo.transform.position, TipoCasilla.Obstaculo);
         return nuevo;
     }
 
@@ -65,13 +86,27 @@ public class SnakeController : MonoBehaviour {
         while (true)
         {
             Vector3 nuevaPosicion = cabeza.transform.position + direccion; // la nueva posicion del bloque siguiente será
-            GameObject parteCuerpo = cuerpo.Dequeue(); //sacara la primera de la cola
-            parteCuerpo.transform.position = nuevaPosicion; // a su posicion le pondrá la siguiente posicion que le corresponde
-            cuerpo.Enqueue(parteCuerpo); //lo encolamos el siguiente cacho
+            TipoCasilla casillaAOcupar = ObtenerMapa(nuevaPosicion);
 
-            cabeza = parteCuerpo; //ahora la cabeza será esa pieza
+            if(casillaAOcupar == TipoCasilla.Obstaculo) //si la casilla siguiente es un obstaculo
+            {
+                Debug.Log("Muerto!");
+                yield return new WaitForSeconds(5); //espera 5 segundos
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); //recarga la escena
+                yield break; //sal de la corrutina
+            }
+            else
+            {
+                GameObject parteCuerpo = cuerpo.Dequeue(); //sacara la primera de la cola
+                EstablecerMapa(parteCuerpo.transform.position, TipoCasilla.Vacio); //antes de moverlo está vacío
+                parteCuerpo.transform.position = nuevaPosicion; // a su posicion le pondrá la siguiente posicion que le corresponde
+                EstablecerMapa(parteCuerpo.transform.position, TipoCasilla.Obstaculo); //después de moverlo ya lo hemos rellenado
+                cuerpo.Enqueue(parteCuerpo); //lo encolamos el siguiente cacho
 
-            yield return espera;
+                cabeza = parteCuerpo; //ahora la cabeza será esa pieza
+
+                yield return espera;
+            }
         }
     }
 
@@ -86,8 +121,8 @@ public class SnakeController : MonoBehaviour {
                 {
                     Vector3 posicion = new Vector3(x, y);
                     Instantiate(Bloque, posicion, Quaternion.identity, Escenario.transform);
+                    EstablecerMapa(posicion, TipoCasilla.Obstaculo); //Cada bloque que vayamos construyendo que esté ocupado
                 }
-
             }
         }
     }
