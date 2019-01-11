@@ -188,9 +188,12 @@ public class SnakeController : MonoBehaviour {
 
     private void Muerte()
     {
+        Puntuacion.text = "Game Over";
+        Puntuacion.fontSize = 100;
         Explotar(this.GetComponentsInChildren<Rigidbody>());
         Explotar(Escenario.GetComponentsInChildren<Rigidbody>());
         StartCoroutine(CambiaColoresCamara());
+
     }
 
     private IEnumerator CambiaColoresCamara()
@@ -209,16 +212,10 @@ public class SnakeController : MonoBehaviour {
             var pos = Random.Range(0, colores.Length);
             Color color = colores[pos];
             Camera.main.backgroundColor = color;
-
-            if(i == vecesAEjecutarColores - 1)
-            {
-                yield break;
-            }
-            else
-            {
-                yield return new WaitForSeconds(0.3f);
-            }
+            yield return new WaitForSeconds(0.3f);
         }
+
+        yield break;
     }
 
     private void Explotar(Rigidbody[] rbs)
